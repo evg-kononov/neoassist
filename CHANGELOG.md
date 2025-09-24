@@ -4,4 +4,4 @@
 
 ## v0.1.0 (23/09/2025)
 
-- First release of `neocore`!
+- First release of `neoassist`!

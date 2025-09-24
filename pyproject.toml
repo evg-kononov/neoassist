@@ -3,7 +3,7 @@ requires = ["setuptools>=80"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "neocore"
+name = "neoassist"
 version = "0.1.0"
 description = "A package for developing AI assistants."
 authors = [

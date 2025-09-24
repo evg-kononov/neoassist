@@ -6,7 +6,7 @@
 
 # -- Project information -----------------------------------------------------
 
-project = u"neocore"
+project = u"neoassist"
 copyright = u"2025, Evgeniy Kononov"
 author = u"Evgeniy Kononov"
 

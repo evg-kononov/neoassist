@@ -40,18 +40,18 @@ If you are proposing a feature:
 
 ## Get Started!
 
-Ready to contribute? Here's how to set up `neocore` for local development.
+Ready to contribute? Here's how to set up `neoassist` for local development.
 
-1. Download a copy of `neocore` locally.
+1. Download a copy of `neoassist` locally.
 
-2. Create and activate a conda environment for `neocore`:
+2. Create and activate a conda environment for `neoassist`:
 
     ```console
-    $ conda create -n neocore python=3.13
-    $ conda activate neocore
+    $ conda create -n neoassist python=3.13
+    $ conda activate neoassist
     ```
 
-3. Install `neocore` using `poetry`:
+3. Install `neoassist` using `poetry`:
 
     ```console
     $ poetry install
@@ -77,5 +77,5 @@ Before you submit a pull request, check that it meets these guidelines:
 
 ## Code of Conduct
 
-Please note that the `neocore` project is released with a
+Please note that the `neoassist` project is released with a
 Code of Conduct. By contributing to this project you agree to abide by its terms.

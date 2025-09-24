@@ -1,11 +1,11 @@
-# neocore
+# neoassist
 
 A package for developing AI assistants.
 
 ## Installation
 
 ```bash
-$ pip install neocore
+$ pip install neoassist
 ```
 
 ## Usage
@@ -18,8 +18,8 @@ Interested in contributing? Check out the contributing guidelines. Please note t
 
 ## License
 
-`neocore` was created by Evgeniy Kononov. It is licensed under the terms of the MIT license.
+`neoassist` was created by Evgeniy Kononov. It is licensed under the terms of the MIT license.
 
 ## Credits
 
-`neocore` was created with [`cookiecutter`](https://cookiecutter.readthedocs.io/en/latest/) and the `py-pkgs-cookiecutter` [template](https://github.com/py-pkgs/py-pkgs-cookiecutter).
+`neoassist` was created with [`cookiecutter`](https://cookiecutter.readthedocs.io/en/latest/) and the `py-pkgs-cookiecutter` [template](https://github.com/py-pkgs/py-pkgs-cookiecutter).

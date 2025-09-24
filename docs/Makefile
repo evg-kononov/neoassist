@@ -3,7 +3,7 @@
 # You can set these variables from the command line.
 SPHINXOPTS    =
 SPHINXBUILD   = python -msphinx
-SPHINXPROJ    = neocore
+SPHINXPROJ    = neoassist
 SOURCEDIR     = .
 BUILDDIR      = _build
 

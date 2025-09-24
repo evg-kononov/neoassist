@@ -1,4 +1,4 @@
-from neocore.metrics import precision, recall
+from neoassist.metrics import precision, recall
 
 
 def test_precision():
