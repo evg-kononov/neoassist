@@ -6,9 +6,9 @@
 
 # -- Project information -----------------------------------------------------
 
-project = u"neoassist"
-copyright = u"2025, Evgeniy Kononov"
-author = u"Evgeniy Kononov"
+project = "neoassist"
+copyright = "2025, Evgeniy Kononov"
+author = "Evgeniy Kononov"
 
 # -- General configuration ---------------------------------------------------
 

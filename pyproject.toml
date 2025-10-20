@@ -14,12 +14,21 @@ readme = "README.md"
 requires-python = ">=3.12"
 
 dependencies = [
+    "colorlog>=6.9.0",
+    "huggingface-hub>=0.35.1",
+    "ir-datasets>=0.5.11",
+    "ir-measures>=0.4.1",
+    "openai>=1.109.1",
     "pymilvus>=2.6",
+    "python-json-logger>=3.3.0",
+    "ranx>=0.3.21",
     "requests>=2.32.5",
+    "typer>=0.19.2",
 ]
 
 [dependency-groups]
 dev = [
+    "jupyterlab>=4.4.9",
     "pytest>=8.4",
     "ruff>=0.12.11",
     "pyright>=1.1.405",
