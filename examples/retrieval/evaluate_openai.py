@@ -8,9 +8,9 @@ from itertools import islice
 from pathlib import Path
 from typing import Any
 
+import pandas as pd
 import ranx
 import requests
-import typer
 from dotenv import load_dotenv
 from huggingface_hub import snapshot_download
 from ir_datasets.datasets.base import Dataset
@@ -36,9 +36,10 @@ logger = logging.getLogger(__name__)
 # --------------------------------------------------------------------
 @dataclass
 class Config:
-    DATASET_NAME: str = "llk"
-    COLLECTION_NAME: str = DATASET_NAME
-    BASE_DIR: Path = Path(__file__).resolve().parent
+    DATASET_NAME: str = "neon"
+    DATASET_SUBSET: str = "neowiki"
+    COLLECTION_NAME: str = "temp"
+    BASE_DIR: Path = Path(__file__).resolve().parent.parent.parent
     LOCAL_DIR: Path = BASE_DIR / "data" / DATASET_NAME
 
     HF_ACCESS_TOKEN: str | None = os.getenv("HF_ACCESS_TOKEN")
@@ -56,7 +57,7 @@ class Config:
     @cached_property
     def RUN_TAG(self) -> str:
         ts = datetime.now().strftime("%Y%m%d_%H%M%S")
-        return f"{self.DATASET_NAME}_{ts}"
+        return f"{self.DATASET_NAME}_{self.DATASET_SUBSET}_{ts}"
 
     @property
     def RUN_OUTPUT_PATH(self) -> Path:
@@ -113,7 +114,8 @@ def build_collection(client: MilvusClient, collection_name: str, dim: int) -> No
     fields = [
         {"field_name": "doc_id", "datatype": DataType.VARCHAR, "is_primary": True, "max_length": 64},
         {"field_name": "vector", "datatype": DataType.FLOAT_VECTOR, "dim": dim},
-        {"field_name": "vector_text", "datatype": DataType.VARCHAR, "max_length": 16384},
+        # TODO: с хранением всего текста в Milvus возникают проблемы из-за ограничения на длину, использовать другую БД для хранения текста
+        # {"field_name": "vector_text", "datatype": DataType.VARCHAR, "max_length": MAX_VECTOR_TEXT_LEN},
     ]
     indexes = [{"field_name": "vector", "index_type": "FLAT", "metric_type": "COSINE"}]
 
@@ -132,6 +134,7 @@ def extract_embeddings(response_json: dict) -> list[list[float]]:
 
 
 def get_embeddings(input: list[str], url: str, model: str) -> list[list[float]]:
+    # TODO: длина строки в input может быть больше, чем контекстное окно embedder'a, нужно решить эту проблему
     headers = {"Content-Type": "application/json"}
     payload = {"model": model, "input": input}
 
@@ -184,10 +187,15 @@ def index_documents(
     ):
         texts = [doc.text for doc in batch]
         vectors = get_embeddings(texts, embed_url, embed_model)
-        data = [
-            {"doc_id": doc.doc_id, "vector": vector, "vector_text": doc.text}
-            for doc, vector in zip(batch, vectors, strict=False)
-        ]
+        data = []
+        for doc, vector in zip(batch, vectors, strict=False):
+            data.append(
+                {
+                    "doc_id": doc.doc_id,
+                    "vector": vector,
+                }
+            )
+
         client.insert(collection_name=collection_name, data=data)
 
     logger.info("Finished indexing %d documents.", total_docs)
@@ -256,11 +264,11 @@ def generate_run(
 
     with open(output_path, "w", encoding="utf-8") as f:
         for i in tqdm(range(0, len(queries), batch_size), desc="Retrieving queries", unit="batch"):
-            batch = queries[i:i + batch_size]
+            batch = queries[i : i + batch_size]
             batch_texts = [q.text for q in batch]
             batch_results = retrieve(client, embed_url, embed_model, collection_name, top_k, batch_texts)
 
-            for q, results in zip(batch, batch_results):
+            for q, results in zip(batch, batch_results, strict=False):
                 for rank, r in enumerate(results, start=1):
                     entry = TrecRunEntry(q.query_id, r.doc_id, rank, r.distance, run_tag)
                     f.write(entry.to_trec_format())
@@ -283,17 +291,10 @@ def evaluate(qrels_path: Path, run_path: Path, metrics: list[str] | None = None)
 # --------------------------------------------------------------------
 # CLI Commands
 # --------------------------------------------------------------------
-app = typer.Typer(help="Information Retrieval Pipeline CLI")
 
 
-@app.command()
-def main():
-    """Index dataset documents in Milvus."""
-    load_dotenv()
-    setup_logging("INFO")
-    cfg = Config()
+def run_experiment(cfg: Config) -> dict[str, Any]:
     cfg.validate()
-
     client = MilvusClient(uri=cfg.MILVUS_URI)
 
     raw_data_dir = (
@@ -302,19 +303,25 @@ def main():
                 repo_id=cfg.REPO_ID,
                 local_dir=str(cfg.LOCAL_DIR),
                 token=cfg.HF_ACCESS_TOKEN,
-                allow_patterns=["faq/*"],
+                allow_patterns=[f"{cfg.DATASET_SUBSET}/*"],
                 repo_type="dataset",
             )
         )
-        / "faq"
+        / cfg.DATASET_SUBSET
     )
+
     docs_path = raw_data_dir / "corpus.jsonl"
     queries_path = raw_data_dir / "queries.jsonl"
     qrels_path = raw_data_dir / "qrels" / "test.tsv"
-
     dataset = load_ir_dataset(docs_path, queries_path, qrels_path)
+
     index_documents(
-        client, cfg.OPENAI_EMBEDDING_ENDPOINT, cfg.OPENAI_EMBEDDING_MODEL, dataset, cfg.COLLECTION_NAME, cfg.BATCH_SIZE
+        client,
+        cfg.OPENAI_EMBEDDING_ENDPOINT,
+        cfg.OPENAI_EMBEDDING_MODEL,
+        dataset,
+        cfg.COLLECTION_NAME,
+        cfg.BATCH_SIZE,
     )
     generate_run(
         client,
@@ -327,8 +334,48 @@ def main():
         cfg.RUN_TAG,
         cfg.BATCH_SIZE,
     )
-    evaluate(qrels_path, cfg.RUN_OUTPUT_PATH)
+    report = evaluate(qrels_path, cfg.RUN_OUTPUT_PATH)
+
+    return {
+        "dataset": f"{cfg.DATASET_NAME}/{cfg.DATASET_SUBSET}",
+        "run_file": str(cfg.RUN_OUTPUT_PATH),
+        **{k: float(v) for k, v in report.items()},
+    }
+
+
+def run():
+    load_dotenv()
+    setup_logging("INFO")
+    cfg = Config()
+    result = run_experiment(cfg)
+
+    df = pd.DataFrame([result])
+    df.to_excel("report.xlsx", index=False)
+
+
+def run_all():
+    load_dotenv()
+    setup_logging("INFO")
+
+    configs = [
+        ("llk", "faq"),
+        ("llk", "synthetic_faq"),
+        ("neon", "faq"),
+        ("neon", "neoportal"),
+        ("neon", "neosite"),
+        ("neon", "neostudy"),
+        ("neon", "neowiki"),
+    ]
+
+    all_results = []
+    for name, subset in configs:
+        cfg = Config(DATASET_NAME=name, DATASET_SUBSET=subset)
+        result = run_experiment(cfg)
+        all_results.append(result)
+
+    df = pd.DataFrame(all_results)
+    df.to_excel("report.xlsx", index=False)
 
 
 if __name__ == "__main__":
-    app()
+    run_all()
