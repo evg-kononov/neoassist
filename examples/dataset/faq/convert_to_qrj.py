@@ -1,3 +1,5 @@
+# TODO: подумать над разбиением на train/dev/test (dev/test, если без обучения модели) и стратификацией
+
 from pathlib import Path
 from uuid import UUID
 
@@ -25,6 +27,7 @@ input_corpus_schema = pa.DataFrameSchema(
         "answer": pa.Column(pa.String, checks=pa.Check.str_length(1)),
     },
     coerce=True,
+    strict=True,
 )
 
 input_queries_schema = pa.DataFrameSchema(
@@ -35,6 +38,7 @@ input_queries_schema = pa.DataFrameSchema(
         "score": pa.Column(pa.Int, checks=[pa.Check.ge(0), pa.Check.le(3)]),
     },
     coerce=True,
+    strict=True,
 )
 
 output_corpus_schema = pa.DataFrameSchema(
@@ -43,6 +47,7 @@ output_corpus_schema = pa.DataFrameSchema(
         "text": pa.Column(pa.String, checks=pa.Check.str_length(1)),
     },
     coerce=True,
+    strict=True,
 )
 
 output_queries_schema = pa.DataFrameSchema(
@@ -51,6 +56,7 @@ output_queries_schema = pa.DataFrameSchema(
         "text": pa.Column(pa.String, checks=pa.Check.str_length(1)),
     },
     coerce=True,
+    strict=True,
 )
 
 output_qrels_schema = pa.DataFrameSchema(
@@ -61,13 +67,9 @@ output_qrels_schema = pa.DataFrameSchema(
         "score": pa.Column(pa.Int, checks=[pa.Check.ge(0), pa.Check.le(3)]),
     },
     coerce=True,
+    strict=True,
 )
 
-# TODO: добавить assert_referential на уровне схемы output_qrels_schema
-# TODO: узнать, применяется ли coerce при @pa.check_...?
-# TODO: узнать, когда нужно применять @pa.check_..., а когда излишне?
-# TODO: написать UNIT-тесты
-# TODO: подумать над разбиением на train/dev/test (dev/test, если без обучения модели) и стратификацией
 
 @pa.check_io(corpus=output_corpus_schema, queries=output_queries_schema, qrels=output_qrels_schema)
 def assert_referential(corpus: pd.DataFrame, queries: pd.DataFrame, qrels: pd.DataFrame) -> None:
@@ -89,17 +91,14 @@ def load_queries(path: Path) -> pd.DataFrame:
     return pd.read_excel(path)
 
 
-@pa.check_io(df=input_corpus_schema, out=output_corpus_schema)
 def build_corpus(df: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame({"doc_id": df["doc_id"], "text": df["question"] + "\n" + df["answer"]}).sort_values("doc_id")
 
 
-@pa.check_io(df=input_queries_schema, out=output_queries_schema)
 def build_queries(df: pd.DataFrame) -> pd.DataFrame:
     return df[["query_id", "text"]].drop_duplicates(subset="query_id").sort_values("query_id").reset_index(drop=True)
 
 
-@pa.check_io(df=input_queries_schema, out=output_qrels_schema)
 def build_qrels(df: pd.DataFrame) -> pd.DataFrame:
     qrels = pd.DataFrame(
         {"query_id": df["query_id"], "iteration": 0, "doc_id": df["doc_id"], "score": df["score"]}
