@@ -28,6 +28,8 @@ dependencies = [
     "unstructured[all-docs]>=0.18.15",
     "docling>=2.58.0",
     "pandera[pandas]>=0.26.1",
+    "crawlee[playwright]>=1.0.4",
+    "trafilatura>=2.0.0",
 ]
 
 [dependency-groups]
